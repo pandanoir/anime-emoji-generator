@@ -5,10 +5,12 @@ import {
   Card,
   Checkbox,
   CheckIcon,
+  ColorPicker,
   ColorSwatch,
   Container,
   Flex,
   NativeSelect,
+  Popover,
   Radio,
   SimpleGrid,
   Stack,
@@ -21,6 +23,7 @@ import { MdDownload } from 'react-icons/md';
 type AnimationFrame = {
   text: string;
   style: { color: string; bold: boolean };
+  pickedColor: string;
   id: number;
 };
 async function drawFrame(
@@ -135,6 +138,7 @@ export function App() {
           color: `hsl(${(360 / 10) * Math.trunc(Math.random() * 10)}, 80%, 60%)`,
           bold: true,
         },
+        pickedColor: '',
         id: 0,
       },
     ],
@@ -215,6 +219,47 @@ export function App() {
                       {color === frame.style.color && <CheckIcon size={12} />}
                     </ColorSwatch>
                   ))}
+
+                  <Popover width={200} position="bottom" withArrow shadow="md">
+                    <Popover.Target>
+                      <ColorSwatch
+                        component="button"
+                        color={frame.pickedColor}
+                        style={{ color: '#fff', cursor: 'pointer' }}
+                        onClick={() => {
+                          setAnimationFrames((frames) =>
+                            frames.with(i, {
+                              ...frame,
+                              style: {
+                                ...frame.style,
+                                color: frame.pickedColor,
+                              },
+                            }),
+                          );
+                        }}
+                      >
+                        {frame.pickedColor === frame.style.color && (
+                          <CheckIcon size={12} />
+                        )}
+                      </ColorSwatch>
+                    </Popover.Target>
+                    <Popover.Dropdown>
+                      <ColorPicker
+                        onChange={(value) =>
+                          setAnimationFrames((frames) =>
+                            frames.with(i, {
+                              ...frame,
+                              style: {
+                                ...frame.style,
+                                color: value,
+                              },
+                              pickedColor: value,
+                            }),
+                          )
+                        }
+                      />
+                    </Popover.Dropdown>
+                  </Popover>
                 </SimpleGrid>
               </Card>
               {animationFrames.length > 1 && (
@@ -250,6 +295,7 @@ export function App() {
                       bold: true,
                       ...frames.at(-1)?.style,
                     },
+                    pickedColor: frames.at(-1)?.pickedColor || '',
                     id: (frames.at(-1)?.id ?? 0) + 1,
                   },
                 ]);
@@ -327,7 +373,12 @@ export function App() {
                   if (!ctx) return;
 
                   const gif = GIFEncoder();
-                  for (const { text, style } of animationFrames) {
+                  for (const { text, style } of animationFrames.flatMap(
+                    (frame) =>
+                      frame.text
+                        .split('\n\n')
+                        .map((text) => ({ ...frame, text })),
+                  )) {
                     drawFrame(canvas, text, style, stretchSetting, fontFamily);
                     const { data } = ctx.getImageData(
                       0,
