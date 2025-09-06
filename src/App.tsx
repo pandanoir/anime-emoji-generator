@@ -1,4 +1,4 @@
-import { ComponentProps, useEffect, useRef, useState } from 'react';
+import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
 import { applyPalette, GIFEncoder, quantize } from 'gifenc';
 import {
   Button,
@@ -18,6 +18,11 @@ import {
 import { FaPlus, FaTrashAlt } from 'react-icons/fa';
 import { MdDownload } from 'react-icons/md';
 
+type AnimationFrame = {
+  text: string;
+  style: { color: string; bold: boolean };
+  id: number;
+};
 async function drawFrame(
   canvas: HTMLCanvasElement,
   text: string,
@@ -45,9 +50,9 @@ async function drawFrame(
     const fontSize =
       stretchSetting === 'alignsFontSize' // フォントサイズを揃える
         ? Math.min(
-            lineHeight,
-            ...lines.map((line) => canvas.width / [...line].length),
-          )
+          lineHeight,
+          ...lines.map((line) => canvas.width / [...line].length),
+        )
         : stretchSetting === 'doesNotStretch' // ストレッチさせない
           ? Math.min(canvas.width / [...line].length, lineHeight)
           : stretchSetting === 'fitsLineHeight' // 行間にフィットさせる
@@ -83,34 +88,60 @@ const FramePreview = ({
 
   return <canvas ref={canvasRef} width="100" height="100" {...props} />;
 };
-export function App() {
+const AnimationPreview = ({
+  frames: _frames,
+  stretchSetting,
+  fontFamily,
+  duration,
+}: {
+  frames: AnimationFrame[];
+  stretchSetting: string;
+  fontFamily: string;
+  duration: number;
+}) => {
   const [previewedFrame, setPreviewedFrame] = useState(0);
-
-  const [animationFrames, setAnimationFrames] = useState<
-    {
-      text: string;
-      style: { color: string; bold: boolean };
-      id: number;
-    }[]
-  >(() => [
-    {
-      text: '',
-      style: {
-        color: `hsl(${(360 / 10) * Math.trunc(Math.random() * 10)}, 80%, 60%)`,
-        bold: true,
-      },
-      id: 0,
-    },
-  ]);
-  const [stretchSetting, setStretchSetting] = useState('fitsLineHeight');
-  const [fontFamily, setFontFamily] = useState('sans-serif');
-  const [duration, setDuration] = useState(500);
   useEffect(() => {
     const id = setInterval(() => {
       setPreviewedFrame((n) => n + 1);
     }, duration);
     return () => clearInterval(id);
   }, [duration]);
+  const frames = useMemo(
+    () =>
+      _frames.flatMap((frame) =>
+        frame.text.split('\n\n').map((text) => ({ ...frame, text })),
+      ),
+    [_frames],
+  );
+
+  return (
+    <FramePreview
+      style={frames[previewedFrame % frames.length].style}
+      stretchSetting={stretchSetting}
+      text={frames[previewedFrame % frames.length].text}
+      fontFamily={fontFamily}
+      width="200"
+      height="200"
+    />
+  );
+};
+
+export function App() {
+  const [animationFrames, setAnimationFrames] = useState<AnimationFrame[]>(
+    () => [
+      {
+        text: '',
+        style: {
+          color: `hsl(${(360 / 10) * Math.trunc(Math.random() * 10)}, 80%, 60%)`,
+          bold: true,
+        },
+        id: 0,
+      },
+    ],
+  );
+  const [stretchSetting, setStretchSetting] = useState('fitsLineHeight');
+  const [fontFamily, setFontFamily] = useState('sans-serif');
+  const [duration, setDuration] = useState(500);
 
   return (
     <Container>
@@ -119,12 +150,15 @@ export function App() {
           {animationFrames.map((frame, i) => (
             <Stack gap="xs" key={frame.id}>
               <Flex>
-                <FramePreview
-                  text={frame.text}
-                  style={frame.style}
-                  stretchSetting={stretchSetting}
-                  fontFamily={fontFamily}
-                />
+                {frame.text.split('\n\n').map((text, i) => (
+                  <FramePreview
+                    key={i}
+                    text={text}
+                    style={frame.style}
+                    stretchSetting={stretchSetting}
+                    fontFamily={fontFamily}
+                  />
+                ))}
               </Flex>
               <Flex gap="xs">
                 <Textarea
@@ -229,17 +263,11 @@ export function App() {
         <Flex gap="sm" align="stretch">
           <Card withBorder>
             <Text fw="bold">プレビュー</Text>
-            <FramePreview
-              style={
-                animationFrames[previewedFrame % animationFrames.length].style
-              }
+            <AnimationPreview
+              frames={animationFrames}
               stretchSetting={stretchSetting}
-              text={
-                animationFrames[previewedFrame % animationFrames.length].text
-              }
               fontFamily={fontFamily}
-              width="200"
-              height="200"
+              duration={duration}
             />
           </Card>
 
