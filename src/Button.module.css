@@ -1,0 +1,12 @@
+.root {
+  &[data-variant='danger'] {
+    --button-bg: var(--mantine-color-red-filled);
+    --button-hover: var(--mantine-color-red-filled-hover);
+  }
+  &[data-variant='danger-outline'] {
+    --button-bg: transparent;
+    --button-hover: var(--mantine-color-red-outline-hover);
+    --button-color: var(--mantine-color-red-outline);
+    --button-bd: calc(0.0625rem * var(--mantine-scale)) solid var(--mantine-color-red-outline);
+  }
+}
