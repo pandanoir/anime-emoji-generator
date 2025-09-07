@@ -19,5 +19,16 @@ export const FramePreview = ({
     drawFrame(canvasRef.current, text, style, stretchSetting, fontFamily);
   }, [text, style, stretchSetting, fontFamily]);
 
-  return <canvas ref={canvasRef} width="100" height="100" {...props} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      width="100"
+      height="100"
+      style={{
+        border: '1px solid var(--mantine-color-dark-0)',
+        borderRadius: 'var(--mantine-radius-sm)',
+      }}
+      {...props}
+    />
+  );
 };
