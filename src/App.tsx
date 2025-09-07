@@ -1,4 +1,11 @@
-import { ComponentProps, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { applyPalette, GIFEncoder, quantize } from 'gifenc';
 import {
   Button,
@@ -73,6 +80,30 @@ async function drawFrame(
   }
 }
 
+function generateGif(
+  frames: ImageDataArray[],
+  width: number,
+  height: number,
+  duration: number,
+) {
+  const gif = GIFEncoder();
+  for (const data of frames) {
+    const palette = quantize(data, 256);
+    gif.writeFrame(applyPalette(data, palette), width, height, {
+      palette,
+      delay: duration,
+    });
+  }
+  gif.finish();
+  return gif.bytes();
+}
+function exportFile(blob: Blob, filename: string) {
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `${filename}`;
+  link.click();
+}
+
 const FramePreview = ({
   text,
   style,
@@ -130,6 +161,39 @@ const AnimationPreview = ({
     />
   );
 };
+const PopoverColorPicker = ({
+  color,
+  onChange,
+  onClick,
+  children,
+}: PropsWithChildren<{
+  color: string;
+  onChange: (value: string) => void;
+  onClick: () => void;
+}>) => (
+  <Popover width={200} position="bottom" withArrow shadow="md">
+    <Popover.Target>
+      <ColorSwatch
+        component="button"
+        color={color}
+        style={{ color: '#fff', cursor: 'pointer' }}
+        onClick={onClick}
+      >
+        {children}
+      </ColorSwatch>
+    </Popover.Target>
+    <Popover.Dropdown>
+      <ColorPicker onChange={onChange} />
+    </Popover.Dropdown>
+  </Popover>
+);
+
+const swatches = [
+  'white',
+  ...[...Array(10).keys()].map((i) => `hsl(${(360 / 10) * i}, 80%, 60%)`),
+  'gray',
+  'black',
+];
 
 export function App() {
   const [animationFrames, setAnimationFrames] = useState<AnimationFrame[]>(
@@ -197,14 +261,7 @@ export function App() {
               </Flex>
               <Card withBorder px={4} py={1}>
                 <SimpleGrid cols={7} spacing="xs" verticalSpacing={4} p="xs">
-                  {[
-                    'white',
-                    ...[...Array(10).keys()].map(
-                      (i) => `hsl(${(360 / 10) * i}, 80%, 60%)`,
-                    ),
-                    'gray',
-                    'black',
-                  ].map((color) => (
+                  {swatches.map((color) => (
                     <ColorSwatch
                       component="button"
                       color={color}
@@ -218,50 +275,33 @@ export function App() {
                       }}
                       style={{ color: '#fff', cursor: 'pointer' }}
                     >
-                      {color === frame.style.color && <CheckIcon size={12} />}
+                      {frame.style.color === color && <CheckIcon size={12} />}
                     </ColorSwatch>
                   ))}
-
-                  <Popover width={200} position="bottom" withArrow shadow="md">
-                    <Popover.Target>
-                      <ColorSwatch
-                        component="button"
-                        color={frame.pickedColor}
-                        style={{ color: '#fff', cursor: 'pointer' }}
-                        onClick={() => {
-                          setAnimationFrames((frames) =>
-                            frames.with(i, {
-                              ...frame,
-                              style: {
-                                ...frame.style,
-                                color: frame.pickedColor,
-                              },
-                            }),
-                          );
-                        }}
-                      >
-                        {frame.pickedColor === frame.style.color && (
-                          <CheckIcon size={12} />
-                        )}
-                      </ColorSwatch>
-                    </Popover.Target>
-                    <Popover.Dropdown>
-                      <ColorPicker
-                        onChange={(value) =>
-                          setAnimationFrames((frames) =>
-                            frames.with(i, {
-                              ...frame,
-                              style: {
-                                ...frame.style,
-                                color: value,
-                              },
-                              pickedColor: value,
-                            }),
-                          )
-                        }
-                      />
-                    </Popover.Dropdown>
-                  </Popover>
+                  <PopoverColorPicker
+                    color={frame.pickedColor}
+                    onClick={() =>
+                      setAnimationFrames((frames) =>
+                        frames.with(i, {
+                          ...frame,
+                          style: { ...frame.style, color: frame.pickedColor },
+                        }),
+                      )
+                    }
+                    onChange={(value) =>
+                      setAnimationFrames((frames) =>
+                        frames.with(i, {
+                          ...frame,
+                          style: { ...frame.style, color: value },
+                          pickedColor: value,
+                        }),
+                      )
+                    }
+                  >
+                    {frame.style.color === frame.pickedColor && (
+                      <CheckIcon size={12} />
+                    )}
+                  </PopoverColorPicker>
                 </SimpleGrid>
                 {animationFrames.length > 1 && (
                   <Button
@@ -420,36 +460,37 @@ export function App() {
                   const ctx = canvas.getContext('2d');
                   if (!ctx) return;
 
-                  const gif = GIFEncoder();
-                  for (const { text, style } of animationFrames.flatMap(
-                    (frame) =>
-                      frame.text
-                        .split('\n\n')
-                        .map((text) => ({ ...frame, text })),
-                  )) {
-                    drawFrame(canvas, text, style, stretchSetting, fontFamily);
-                    const { data } = ctx.getImageData(
-                      0,
-                      0,
-                      canvas.width,
-                      canvas.height,
-                    );
-                    const palette = quantize(data, 256);
-                    gif.writeFrame(
-                      applyPalette(data, palette),
-                      canvas.width,
-                      canvas.height,
-                      { palette, delay: duration },
-                    );
-                  }
-                  gif.finish();
-
-                  const link = document.createElement('a');
-                  link.href = URL.createObjectURL(
-                    new Blob([gif.bytes() as Uint8Array<ArrayBuffer>]),
+                  exportFile(
+                    new Blob([
+                      generateGif(
+                        animationFrames
+                          .flatMap((frame) =>
+                            frame.text
+                              .split('\n\n')
+                              .map((text) => ({ ...frame, text })),
+                          )
+                          .map(({ text, style }) => {
+                            drawFrame(
+                              canvas,
+                              text,
+                              style,
+                              stretchSetting,
+                              fontFamily,
+                            );
+                            return ctx.getImageData(
+                              0,
+                              0,
+                              canvas.width,
+                              canvas.height,
+                            ).data;
+                          }),
+                        canvas.width,
+                        canvas.height,
+                        duration,
+                      ) as Uint8Array<ArrayBuffer>,
+                    ]),
+                    `${animationFrames.map(({ text }) => text.replaceAll('\n', '')).join('_')}.gif`,
                   );
-                  link.download = `${animationFrames.map(({ text }) => text.replaceAll('\n', '')).join('_')}.gif`;
-                  link.click();
                 }}
                 leftSection={<MdDownload />}
               >
