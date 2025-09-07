@@ -1,23 +1,13 @@
-import {
-  ComponentProps,
-  PropsWithChildren,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { applyPalette, GIFEncoder, quantize } from 'gifenc';
+import { useState } from 'react';
 import {
   Button,
   Card,
   Checkbox,
   CheckIcon,
-  ColorPicker,
   ColorSwatch,
   Container,
   Flex,
   NativeSelect,
-  Popover,
   Radio,
   SimpleGrid,
   Stack,
@@ -28,182 +18,26 @@ import { FaPlus, FaTrashAlt } from 'react-icons/fa';
 import { MdDownload } from 'react-icons/md';
 import { LuCopy } from 'react-icons/lu';
 import { notifications } from '@mantine/notifications';
+import { exportFile } from './functions/exportFile';
+import { generateGif } from './functions/generateGif';
+import { AnimationPreview } from './components/AnimationPreview';
+import { FramePreview } from './components/FramePreview';
+import { PopoverColorPicker } from './components/PopoverColorPicker';
+import { AnimationFrame } from './types/AnimationFrame';
+import { drawFrame } from './functions/drawFrame';
+import { sample } from './functions/sample';
 
-type AnimationFrame = {
-  text: string;
-  style: { color: string; bold: boolean };
-  pickedColor: string;
-  id: number;
-};
-async function drawFrame(
-  canvas: HTMLCanvasElement,
-  text: string,
-  style: { color: string; bold: boolean },
-  stretchSetting: string,
-  fontFamily: string,
-) {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  if (!document.fonts.check(`16px "${fontFamily}"`)) {
-    await document.fonts.load(`16px "${fontFamily}"`);
-  }
-
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const lines = text.split('\n');
-  const lineHeight = canvas.height / lines.length;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    ctx.fillStyle = style.color;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const fontSize =
-      stretchSetting === 'alignsFontSize' // フォントサイズを揃える
-        ? Math.min(
-          lineHeight,
-          ...lines.map((line) => canvas.width / [...line].length),
-        )
-        : stretchSetting === 'doesNotStretch' // ストレッチさせない
-          ? Math.min(canvas.width / [...line].length, lineHeight)
-          : stretchSetting === 'fitsLineHeight' // 行間にフィットさせる
-            ? lineHeight
-            : '';
-    ctx.font = `${style.bold ? 'bold' : ''} ${fontSize}px ${fontFamily}`;
-    ctx.fillText(
-      line,
-      canvas.width / 2,
-      lineHeight * i + lineHeight / 2,
-      canvas.width,
-    );
-  }
-}
-
-function generateGif(
-  frames: ImageDataArray[],
-  width: number,
-  height: number,
-  duration: number,
-) {
-  const gif = GIFEncoder();
-  for (const data of frames) {
-    const palette = quantize(data, 256);
-    gif.writeFrame(applyPalette(data, palette), width, height, {
-      palette,
-      delay: duration,
-    });
-  }
-  gif.finish();
-  return gif.bytes();
-}
-function exportFile(blob: Blob, filename: string) {
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `${filename}`;
-  link.click();
-}
-
-const FramePreview = ({
-  text,
-  style,
-  stretchSetting,
-  fontFamily,
-  ...props
-}: {
-  text: string;
-  style: { color: string; bold: boolean };
-  stretchSetting: string;
-  fontFamily: string;
-} & ComponentProps<'canvas'>) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    drawFrame(canvasRef.current, text, style, stretchSetting, fontFamily);
-  }, [text, style, stretchSetting, fontFamily]);
-
-  return <canvas ref={canvasRef} width="100" height="100" {...props} />;
-};
-const AnimationPreview = ({
-  frames: _frames,
-  stretchSetting,
-  fontFamily,
-  duration,
-}: {
-  frames: AnimationFrame[];
-  stretchSetting: string;
-  fontFamily: string;
-  duration: number;
-}) => {
-  const [previewedFrame, setPreviewedFrame] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPreviewedFrame((n) => n + 1);
-    }, duration);
-    return () => clearInterval(id);
-  }, [duration]);
-  const frames = useMemo(
-    () =>
-      _frames.flatMap((frame) =>
-        frame.text.split('\n\n').map((text) => ({ ...frame, text })),
-      ),
-    [_frames],
-  );
-
-  return (
-    <FramePreview
-      style={frames[previewedFrame % frames.length].style}
-      stretchSetting={stretchSetting}
-      text={frames[previewedFrame % frames.length].text}
-      fontFamily={fontFamily}
-      width="200"
-      height="200"
-    />
-  );
-};
-const PopoverColorPicker = ({
-  color,
-  onChange,
-  onClick,
-  children,
-}: PropsWithChildren<{
-  color: string;
-  onChange: (value: string) => void;
-  onClick: () => void;
-}>) => (
-  <Popover width={200} position="bottom" withArrow shadow="md">
-    <Popover.Target>
-      <ColorSwatch
-        component="button"
-        color={color}
-        style={{ color: '#fff', cursor: 'pointer' }}
-        onClick={onClick}
-      >
-        {children}
-      </ColorSwatch>
-    </Popover.Target>
-    <Popover.Dropdown>
-      <ColorPicker onChange={onChange} />
-    </Popover.Dropdown>
-  </Popover>
+const colorfulSwatches = [...Array(10).keys()].map(
+  (i) => `hsl(${(360 / 10) * i}, 80%, 60%)`,
 );
-
-const swatches = [
-  'white',
-  ...[...Array(10).keys()].map((i) => `hsl(${(360 / 10) * i}, 80%, 60%)`),
-  'gray',
-  'black',
-];
+const swatches = ['white', ...colorfulSwatches, 'gray', 'black'];
 
 export function App() {
   const [animationFrames, setAnimationFrames] = useState<AnimationFrame[]>(
     () => [
       {
         text: '',
-        style: {
-          color: `hsl(${(360 / 10) * Math.trunc(Math.random() * 10)}, 80%, 60%)`,
-          bold: true,
-        },
+        style: { color: sample(colorfulSwatches), bold: true },
         pickedColor: '',
         id: 0,
       },
@@ -379,7 +213,7 @@ export function App() {
                   {
                     text: '',
                     style: {
-                      color: `hsl(${(360 / 10) * Math.trunc(Math.random() * 10)}, 80%, 60%)`,
+                      color: sample(colorfulSwatches),
                       bold: true,
                       ...frames.at(-1)?.style,
                     },
