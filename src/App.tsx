@@ -19,6 +19,8 @@ import {
 } from '@mantine/core';
 import { FaPlus, FaTrashAlt } from 'react-icons/fa';
 import { MdDownload } from 'react-icons/md';
+import { LuCopy } from 'react-icons/lu';
+import { notifications } from '@mantine/notifications';
 
 type AnimationFrame = {
   text: string;
@@ -261,6 +263,39 @@ export function App() {
                     </Popover.Dropdown>
                   </Popover>
                 </SimpleGrid>
+                {animationFrames.length > 1 && (
+                  <Button
+                    variant="outline"
+                    leftSection={<LuCopy />}
+                    onClick={() => {
+                      setAnimationFrames((frames) =>
+                        frames.map((x) => ({
+                          ...x,
+                          style: { ...x.style, color: frame.style.color },
+                          pickedColor: frame.pickedColor,
+                        })),
+                      );
+                      const id = notifications.show({
+                        autoClose: 8000,
+                        message: (
+                          <Flex gap="sm" align="center">
+                            色設定を全てに反映させました
+                            <Button
+                              onClick={() => {
+                                setAnimationFrames(animationFrames);
+                                notifications.hide(id);
+                              }}
+                            >
+                              戻す
+                            </Button>
+                          </Flex>
+                        ),
+                      });
+                    }}
+                  >
+                    この色に全て変更
+                  </Button>
+                )}
               </Card>
               {animationFrames.length > 1 && (
                 <Button
