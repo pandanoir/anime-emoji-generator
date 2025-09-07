@@ -303,12 +303,25 @@ export function App() {
                   variant="danger-outline"
                   style={{ width: 'max-content' }}
                   onClick={() => {
-                    if (!confirm(`"${frame.text}"を削除しますか?`)) {
-                      return;
-                    }
                     setAnimationFrames((frames) =>
                       frames.filter((x) => x.id !== frame.id),
                     );
+                    const id = notifications.show({
+                      autoClose: 8000,
+                      message: (
+                        <Flex gap="sm" align="center">
+                          {frame.text}を削除しました
+                          <Button
+                            onClick={() => {
+                              setAnimationFrames(animationFrames);
+                              notifications.hide(id);
+                            }}
+                          >
+                            戻す
+                          </Button>
+                        </Flex>
+                      ),
+                    });
                   }}
                 >
                   削除
