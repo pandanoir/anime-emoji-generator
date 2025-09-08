@@ -8,7 +8,6 @@ import {
   Container,
   Flex,
   NativeSelect,
-  Paper,
   Radio,
   SimpleGrid,
   Stack,
