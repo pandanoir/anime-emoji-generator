@@ -4,6 +4,7 @@ import { App } from './App';
 import { Button, createTheme, MantineProvider } from '@mantine/core';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
+import './global.css';
 import buttonClasses from './Button.module.css';
 import { Notifications } from '@mantine/notifications';
 
