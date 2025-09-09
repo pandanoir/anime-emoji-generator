@@ -30,9 +30,8 @@ export const AnimationPreview = ({
 
   return (
     <FramePreview
-      style={frames[previewedFrame % frames.length].style}
+      frame={frames[previewedFrame % frames.length]}
       stretchSetting={stretchSetting}
-      text={frames[previewedFrame % frames.length].text}
       fontFamily={fontFamily}
       width="200"
       height="200"

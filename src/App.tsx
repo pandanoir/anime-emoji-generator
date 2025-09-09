@@ -6,6 +6,7 @@ import {
   CheckIcon,
   ColorSwatch,
   Container,
+  FileInput,
   Flex,
   NativeSelect,
   Radio,
@@ -23,9 +24,10 @@ import { generateGif } from './functions/generateGif';
 import { AnimationPreview } from './components/AnimationPreview';
 import { FramePreview } from './components/FramePreview';
 import { PopoverColorPicker } from './components/PopoverColorPicker';
-import { AnimationFrame } from './types/AnimationFrame';
-import { drawFrame } from './functions/drawFrame';
+import type { AnimationFrame } from './types/AnimationFrame';
+import { drawTextFrame } from './functions/drawFrame';
 import { sample } from './functions/sample';
+import { FaFileImage } from 'react-icons/fa6';
 
 const colorfulSwatches = [...Array(10).keys()].map(
   (i) => `hsl(${(360 / 10) * i}, 80%, 60%)`,
@@ -58,8 +60,7 @@ export function App() {
                   {frame.text.split('\n\n').map((text, i) => (
                     <FramePreview
                       key={i}
-                      text={text}
-                      style={frame.style}
+                      frame={{ ...frame, text }}
                       stretchSetting={stretchSetting}
                       fontFamily={fontFamily}
                     />
@@ -172,36 +173,75 @@ export function App() {
                     </Button>
                   )}
                 </Card>
-                {animationFrames.length > 1 && (
-                  <Button
-                    leftSection={<FaTrashAlt />}
-                    variant="danger-outline"
-                    style={{ width: 'max-content' }}
-                    onClick={() => {
-                      setAnimationFrames((frames) =>
-                        frames.filter((x) => x.id !== frame.id),
-                      );
-                      const id = notifications.show({
-                        autoClose: 8000,
-                        message: (
-                          <Flex gap="sm" align="center">
-                            {frame.text}を削除しました
-                            <Button
-                              onClick={() => {
-                                setAnimationFrames(animationFrames);
-                                notifications.hide(id);
-                              }}
-                            >
-                              戻す
-                            </Button>
-                          </Flex>
-                        ),
-                      });
+                <Flex gap="sm">
+                  <FileInput
+                    leftSection={<FaFileImage />}
+                    leftSectionPointerEvents="none"
+                    wrapperProps={{
+                      style: {
+                        maxWidth: 160,
+                      },
                     }}
-                  >
-                    削除
-                  </Button>
-                )}
+                    onChange={(file) => {
+                      console.log(file);
+                      if (!file) {
+                        setAnimationFrames((frames) =>
+                          frames.with(i, { ...frame, imageSrc: undefined }),
+                        );
+                        return;
+                      }
+
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        const imageSrc = e.target?.result;
+                        const img = new Image();
+                        if (typeof imageSrc !== 'string') {
+                          setAnimationFrames((frames) =>
+                            frames.with(i, { ...frame, imageSrc: undefined }),
+                          );
+                          return;
+                        }
+                        img.onload = () => {
+                          setAnimationFrames((frames) =>
+                            frames.with(i, { ...frame, imageSrc }),
+                          );
+                        };
+                        img.src = imageSrc;
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  {animationFrames.length > 1 && (
+                    <Button
+                      leftSection={<FaTrashAlt />}
+                      variant="danger-outline"
+                      style={{ width: 'max-content' }}
+                      onClick={() => {
+                        setAnimationFrames((frames) =>
+                          frames.filter((x) => x.id !== frame.id),
+                        );
+                        const id = notifications.show({
+                          autoClose: 8000,
+                          message: (
+                            <Flex gap="sm" align="center">
+                              {frame.text}を削除しました
+                              <Button
+                                onClick={() => {
+                                  setAnimationFrames(animationFrames);
+                                  notifications.hide(id);
+                                }}
+                              >
+                                戻す
+                              </Button>
+                            </Flex>
+                          ),
+                        });
+                      }}
+                    >
+                      削除
+                    </Button>
+                  )}
+                </Flex>
               </Stack>
             ))}
             <div>
@@ -306,7 +346,7 @@ export function App() {
                               .map((text) => ({ ...frame, text })),
                           )
                           .map(({ text, style }) => {
-                            drawFrame(
+                            drawTextFrame(
                               canvas,
                               text,
                               style,

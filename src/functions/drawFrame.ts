@@ -1,4 +1,4 @@
-export async function drawFrame(
+export async function drawTextFrame(
   canvas: HTMLCanvasElement,
   text: string,
   style: { color: string; bold: boolean },
@@ -41,4 +41,28 @@ export async function drawFrame(
       canvas.width,
     );
   }
+}
+
+const imageCache = new Map<string, HTMLImageElement>();
+export async function drawImageFrame(
+  canvas: HTMLCanvasElement,
+  imageSrc: string,
+) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const cache = imageCache.get(imageSrc);
+  if (cache) {
+    ctx.drawImage(cache, 0, 0, canvas.width, canvas.height);
+    return;
+  }
+  const img = new Image();
+  imageCache.set(imageSrc, img);
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+  img.src = imageSrc;
 }

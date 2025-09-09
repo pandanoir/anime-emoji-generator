@@ -1,23 +1,31 @@
 import { ComponentProps, useRef, useEffect } from 'react';
-import { drawFrame } from '../functions/drawFrame';
+import { drawImageFrame, drawTextFrame } from '../functions/drawFrame';
+import type { AnimationFrame } from '../types/AnimationFrame';
 
 export const FramePreview = ({
-  text,
-  style,
+  frame,
   stretchSetting,
   fontFamily,
   ...props
 }: {
-  text: string;
-  style: { color: string; bold: boolean };
+  frame: AnimationFrame;
   stretchSetting: string;
   fontFamily: string;
 } & ComponentProps<'canvas'>) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (!canvasRef.current) return;
-    drawFrame(canvasRef.current, text, style, stretchSetting, fontFamily);
-  }, [text, style, stretchSetting, fontFamily]);
+    if (frame.imageSrc) {
+      drawImageFrame(canvasRef.current, frame.imageSrc);
+    } else
+      drawTextFrame(
+        canvasRef.current,
+        frame.text,
+        frame.style,
+        stretchSetting,
+        fontFamily,
+      );
+  }, [frame.text, frame.style, frame.imageSrc, stretchSetting, fontFamily]);
 
   return (
     <canvas
