@@ -25,7 +25,7 @@ import { AnimationPreview } from './components/AnimationPreview';
 import { FramePreview } from './components/FramePreview';
 import { PopoverColorPicker } from './components/PopoverColorPicker';
 import type { AnimationFrame } from './types/AnimationFrame';
-import { drawTextFrame } from './functions/drawFrame';
+import { drawImageFrame, drawTextFrame } from './functions/drawFrame';
 import { sample } from './functions/sample';
 import { FaFileImage } from 'react-icons/fa6';
 
@@ -329,37 +329,45 @@ export function App() {
                 ))}
               </Radio.Group>
               <Button
-                onClick={() => {
+                onClick={async () => {
                   const canvas = document.createElement('canvas');
                   canvas.width = 200;
                   canvas.height = 200;
                   const ctx = canvas.getContext('2d');
                   if (!ctx) return;
 
+                  const frames = [];
+                  for (const {
+                    text,
+                    style,
+                    imageSrc,
+                  } of animationFrames.flatMap((frame) =>
+                    frame.imageSrc
+                      ? frame
+                      : frame.text
+                        .split('\n\n')
+                        .map((text) => ({ ...frame, text })),
+                  )) {
+                    if (imageSrc) {
+                      await drawImageFrame(canvas, imageSrc);
+                    } else {
+                      await drawTextFrame(
+                        canvas,
+                        text,
+                        style,
+                        stretchSetting,
+                        fontFamily,
+                      );
+                    }
+                    frames.push(
+                      ctx.getImageData(0, 0, canvas.width, canvas.height).data,
+                    );
+                  }
+
                   exportFile(
                     new Blob([
                       generateGif(
-                        animationFrames
-                          .flatMap((frame) =>
-                            frame.text
-                              .split('\n\n')
-                              .map((text) => ({ ...frame, text })),
-                          )
-                          .map(({ text, style }) => {
-                            drawTextFrame(
-                              canvas,
-                              text,
-                              style,
-                              stretchSetting,
-                              fontFamily,
-                            );
-                            return ctx.getImageData(
-                              0,
-                              0,
-                              canvas.width,
-                              canvas.height,
-                            ).data;
-                          }),
+                        frames,
                         canvas.width,
                         canvas.height,
                         duration,

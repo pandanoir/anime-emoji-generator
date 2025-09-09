@@ -44,10 +44,7 @@ export async function drawTextFrame(
 }
 
 const imageCache = new Map<string, HTMLImageElement>();
-export async function drawImageFrame(
-  canvas: HTMLCanvasElement,
-  imageSrc: string,
-) {
+export function drawImageFrame(canvas: HTMLCanvasElement, imageSrc: string) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
@@ -59,10 +56,13 @@ export async function drawImageFrame(
     ctx.drawImage(cache, 0, 0, canvas.width, canvas.height);
     return;
   }
-  const img = new Image();
-  imageCache.set(imageSrc, img);
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  };
-  img.src = imageSrc;
+  return new Promise<void>((resolve) => {
+    const img = new Image();
+    imageCache.set(imageSrc, img);
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve();
+    };
+    img.src = imageSrc;
+  });
 }
